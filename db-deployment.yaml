@@ -1,0 +1,88 @@
+# Defining a "Persistent Volume Claim (PVC)" for Mysql storage , dynamically provisioned by cluster
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pv-claim  # name of PVC essential for identifying the storage data
+  labels:
+    app: mysql
+    tier: database
+spec:
+  accessModes:
+    - ReadWriteOnce # specifies the mode of the claim that we are trying to create
+  resources:
+    requests:
+      storage: 1Gi # this tell kubernetes about the amount of space we are trying to claim.
+---
+# Configuring the Deployment object for mysql server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+    tier: database
+spec:
+  selector: #mysql Pod should contain same labels
+    matchLabels:
+      app: mysql
+      tier: database
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels: #must match 'Service' and 'Deployment' selectors
+        app: mysql
+        tier: database
+    spec:
+      containers:
+        - image: mysql:5.7 #image from docker hub
+          args:
+            - "--ignore-db-dir=lost+found" #workaround for https://github.com/docker-library/mysql/issues/186
+          name: mysql
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              #value: root - this 'root' should have been hard coded password writen directly here
+              valueFrom:
+                secretKeyRef: #mysql-secrets.yaml
+                  name: mysql-secrets #secret name
+                  key:  password #fetching 'password key' from secrets & refrences also to its value in secrets
+
+            - name: MYSQL_DATABASE #Setting database name for ConfigMap
+              #value: product_list - this 'product_list' should have been hard coded dbName writen directly here
+              valueFrom:
+                configMapKeyRef: #mysql-configMap.yaml
+                  name: db-config #configMap name
+                  key:  dbName #fetching 'dbName key' from configMap & refrences also to its value in configMap
+          ports:
+            - containerPort: 3306
+              name: mysql #host database
+          volumeMounts: #mounting volume obtained from PVC
+            - name: mysql-persistent-storage
+              mountPath: /var/lib/mysql #this is the path in container on which the mounting will take place.
+      volumes:
+        - name: mysql-persistent-storage #obtaining volume from PVC
+          persistentVolumeClaim:
+            claimName: mysql-pv-claim
+---
+#Defining Service Object
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql #DNS name
+  labels:
+    app: mysql
+    tier: database
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+  selector:  #mysql Pod should contain same labels
+    app: mysql
+    tier: database
+  clusterIP: None  #we use DNS ,thus clusterIP is not relevent
+
+
+
+
+
+

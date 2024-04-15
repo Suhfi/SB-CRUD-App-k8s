@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sb-crud-app-deployment
+spec:
+  selector:
+    matchLabels:
+      app: springboot-k8s-mysql
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: springboot-k8s-mysql
+    spec:
+      containers:
+        - name: sb-crud-app
+          image: suhfi/sb-crud-app:1.0
+          ports:
+            - containerPort: 8080
+          env:  #setting environment variables , whatever you set here should be same in application.yaml file
+            - name: DB_HOST #setting database host address from configMap
+              #value: mysql - this 'mysql' should have been hard coded hostname here
+              valueFrom:
+                configMapKeyRef: #mysql-configMap.yaml
+                  name: db-config #configMap name
+                  key:  host #fetching 'host key' from configMap & refrences also to its value in configMap
+
+            - name: DB_NAME #setting database name from configMap
+              #value: product_list - this 'product_list' should have been hard coded dbName writen directly here
+              valueFrom:
+                configMapKeyRef: #mysql-configMap.yaml
+                  name: db-config #configMap name
+                  key: dbName #fetching 'dbName key' from configMap & refrences also to its value in configMap
+
+            - name: DB_USERNAME #setting database username from secret
+              #value: root - this 'root' should have been hard coded username writen directly here
+              valueFrom:
+                secretKeyRef: #mysql-secrets.yaml
+                  name: mysql-secrets #secret name
+                  key: username #fetching 'username key' from secrets & refrences also to its value in secrets
+
+            - name: DB_PASSWORD #setting database password from secret
+              #value: root - this 'root' should have been hard coded password writen directly here
+              valueFrom:
+                secretKeyRef: #mysql-secrets.yaml
+                  name: mysql-secrets #secret name
+                  key: password #fetching 'password key' from secrets & refrences also to its value in secrets
+
+---
+
+apiVersion: v1 #kubernetes api version
+kind: Service  #kubernetes resource kind
+metadata:      #metadata of resource kind
+  name: sb-crud-app-svc
+spec:
+  selector:
+    app: springboot-k8s-mysql
+  ports:
+    - protocol: "TCP"
+      port: 8080 #the port that the service is running on in the cluster
+      targetPort: 8080 #the port exposed to the service
+  type: NodePort  #type of service
