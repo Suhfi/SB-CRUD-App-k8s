@@ -1,0 +1,2 @@
+# This project is based on Docker and Kubernetes
+In this project I have performed CRUD operations. Then to avoid dependencies mismatch on any other machine i have built an docker- image(suhfi/sb-crud-app:1.0) of this application and to run it in an isolated environment one need to pull this image from Docker-Hub and create its container i.e its runnable instance. For container orchestration I have used Kubenetes for this project.
